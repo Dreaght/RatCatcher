@@ -6,12 +6,13 @@ const Discord = require("discord-user-bots");
 const client = new Discord.Client();
 
 const catcherName = process.env.CATCHER_NAME || 'defaultCatcherName';
-const ratName = process.env.RAT_NAME || 'defaultRatName';
+const ratName = process.env.RAT_NAME.toLowerCase() || 'defaultRatName';
 const ratDiscordChannelID = process.env.RAT_DISCORD_CHANNEL_ID || 'defaultChannelID';
 const catcherDiscordToken = process.env.CATCHER_DISCORD_TOKEN || 'defaultDiscordToken';
 
 let ratIsSupposedToBeOnline = false;
 let ratIsSupposedToBeCompletelyOffline = false
+let ratIsCompletelyOffline = false
 
 var sendingLimit = 0
 
@@ -23,43 +24,49 @@ const bot = mineflayer.createBot({
 });
 
 bot.once("spawn", () => {
+    console.log("Catcher has joined!");
+    console.log("Starting spectating on " + ratName)
     setTimeout(startFriendListing, 2000 + Math.floor(Math.random() * 200));
 });
 
 bot.on('message', (message) => {
-    const messageText = message.getText();
+    const messageText = message.getText().toLowerCase();
     if (messageText.includes(ratName)) {
         if (messageText.includes("joined")) {
             ratIsSupposedToBeOnline = true;
+            ratIsSupposedToBeCompletelyOffline = false
+            ratIsCompletelyOffline = false
             ratHasJoined()
         } else if (messageText.includes("left")) {
             ratIsSupposedToBeOnline = false;
+            ratIsSupposedToBeCompletelyOffline = true
+            ratIsCompletelyOffline = true
             ratHasLeft()
         }
     }
-});
 
-bot.on('message', (message) => {
     if (message.text === "-----------------------------------------------------") {
         if (message.extra) { // Check if message.extra exists
-            let matchLines = message.extra.filter(value => value.getText().includes(ratName));
+            let matchLines = message.extra.filter(value =>
+                value.getText().toLowerCase().includes(ratName));
             if (matchLines.length > 0) {
-                let matchLine = matchLines[matchLines.length - 1].getText();
+                let matchLine = matchLines[matchLines.length - 1].getText().toLowerCase();
                 let isOnline = !matchLine.includes("offline");
+                let isInLimbo = matchLine.includes("limbo");
 
                 if (ratIsSupposedToBeOnline && !isOnline) {
-                    ratIsSupposedToBeCompletelyOffline = false
-                    ratIsSupposedToBeOnline = true
                     ratIsCaughtOnOfflineStatus();
-                } else if (!ratIsSupposedToBeOnline && !isOnline) {
+                }
+                if (!ratIsSupposedToBeOnline && !isOnline) {
                     ratIsSupposedToBeCompletelyOffline = true
-                } else if (ratIsSupposedToBeCompletelyOffline && isOnline && !ratIsSupposedToBeOnline) {
+                }
+                if (ratIsSupposedToBeOnline && isOnline) {
+                    ratIsSupposedToBeCompletelyOffline = false
+                }
+                if (ratIsSupposedToBeCompletelyOffline && isOnline && !ratIsSupposedToBeOnline && !isInLimbo && !ratIsCompletelyOffline) {
                     ratIsSupposedToBeCompletelyOffline = false;
                     ratIsSupposedToBeOnline = true
                     ratIsCaughtOnTogglingOnlineStatus()
-                } else if (isOnline) {
-                    ratIsSupposedToBeCompletelyOffline = false
-                    ratIsSupposedToBeOnline = true
                 }
             }
         }
